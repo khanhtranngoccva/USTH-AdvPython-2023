@@ -1,4 +1,3 @@
-import sys
 import uuid
 
 
@@ -12,26 +11,38 @@ def integer_input(prompt: str | None = None) -> int:
     return result
 
 
+class NotEnoughDataException(BaseException):
+    pass
+
+
 class Student:
-    def __init__(self, name: str = input("Student name: > "), dob: str = input("Student date of birth: > ")):
-        self.name = name
-        self.dob = dob
+    def __init__(self, name: str | None = None, dob: str | None = None):
+        self.name = name if name is not None else input("Student name: > ")
+        self.dob = dob if dob is not None else input("Student date of birth: > ")
         self.marks: dict[str, int] = {}
 
-    def mark(self, course_id: str, score: int = integer_input("Enter your course score > ")):
-        self.marks[course_id] = score
+    def mark(self, course_id: str, score: int | None = None):
+        self.marks[course_id] = score if score is not None else integer_input("Enter the student's score: > ")
+        return self
+
+    def rename(self, new_name: str | None = None):
+        self.name = new_name if new_name is not None else input("Enter the student's new name: > ")
+        return self
+
+    def change_date_of_birth(self, dob: str | None = None):
+        self.dob = dob if dob is not None else input("Enter the student's new date of birth: > ")
         return self
 
     def __str__(self):
-        return f"STUDENT NAME: {self.name}"
+        return f"STUDENT NAME: {self.name}, DOB: {self.dob}"
 
 
 class Course:
-    def __init__(self, name: str = input("Enter new course name: > ")):
-        self.name = name
+    def __init__(self, name: str | None = None):
+        self.name = name if name is not None else input("Enter new course name: > ")
 
-    def rename(self, name: str = input("Enter new course name: > ")):
-        self.name = name
+    def rename(self, name: str | None = None):
+        self.name = name if name is not None else input("Enter new course name: > ")
         return self
 
     def __str__(self):
@@ -39,8 +50,9 @@ class Course:
 
 
 class Classroom:
-    def __init__(self, max_students: int = integer_input("Enter max number of students: > ")):
-        self.max_students = max_students
+    def __init__(self, max_students: int | None = None):
+        self.max_students = max_students if max_students is not None else integer_input(
+            "Enter max number of students: > ")
         self.students: dict[str, Student] = {}
         self.courses: dict[str, Course] = {}
 
@@ -52,12 +64,18 @@ class Classroom:
         self.courses[str(new_course_id)] = new_course
         return new_course
 
+    def list_courses(self):
+        for course in self.courses.values():
+            print(course)
+
     def _select_course_id(self) -> str:
+        if len(self.students) <= 0:
+            raise NotEnoughDataException("No courses.")
         id_mapping: dict[int, str] = {}
         i = 0
         for course_id, course in self.courses.items():
-            print(f"{i}: {course}")
             i += 1
+            print(f"{i}: {course}")
             id_mapping[i] = course_id
         while True:
             course_index = integer_input("Select a course: > ")
@@ -88,11 +106,13 @@ class Classroom:
         return new_student
 
     def _select_student_id(self) -> str:
+        if len(self.students) <= 0:
+            raise NotEnoughDataException("No students.")
         id_mapping: dict[int, str] = {}
         i = 0
         for student_id, student in self.students.items():
-            print(f"{i}: {student}")
             i += 1
+            print(f"{i}: {student}")
             id_mapping[i] = student_id
         while True:
             student_id = integer_input("Select a student: > ")
@@ -102,74 +122,67 @@ class Classroom:
     def select_student(self) -> Student:
         return self.students[self._select_student_id()]
 
+    def rename_student(self) -> Student:
+        return self.students[self._select_student_id()].rename()
 
-def create_edit_student(classroom: dict[str, dict | int]):
-    student_id = input("Input student ID: > ")
-    student_name = input("Input student name: > ")
-    student_dob = input("Input student date of birth: > ")
-    if student_id in classroom["student_data"] or len(classroom["student_data"]) < classroom["max_student_count"]:
-        classroom["student_data"][student_id] = _gen_student(student_name, student_dob)
-    else:
-        raise Exception("Error - Classroom is full.")
+    def change_student_dob(self) -> Student:
+        return self.students[self._select_student_id()].change_date_of_birth()
 
+    def mark_student(self) -> Student:
+        student_id = self._select_student_id()
+        course_id = self._select_course_id()
+        return self.students[student_id].mark(course_id)
 
-def _input_marks(classroom: dict[str, dict | int], student: dict[str, str | dict[str, str | dict]]):
-    course_id_to_mark = input("Input course ID: >")
-    if course_id_to_mark not in classroom["course_data"]:
-        raise Exception("Error - This course does not exist.")
-    mark = input("Input course mark > ")
-    student["marks"][course_id_to_mark] = mark
+    def remove_student(self):
+        student_id_to_remove = self._select_student_id()
+        del self.students[student_id_to_remove]
 
+    def list_students(self):
+        for student in self.students.values():
+            print(student)
+            print("MARKSHEET:")
+            print("-" * 20)
+            for course_id, score in student.marks.items():
+                print(f'{self.courses[course_id]}: {score}')
+            print("-" * 20)
 
-def mark_student(classroom: dict[str, dict | int]):
-    student_id = input("Enter student ID: > ")
-    if student_id not in classroom["student_data"]:
-        raise Exception("Error - This student does not exist.")
-    _input_marks(classroom, classroom["student_data"][student_id])
+    def start_manager(self):
+        def exit_loop():
+            raise SystemExit
 
+        functionalities = {
+            1: {"function": self.list_courses, "description": "List courses"},
+            2: {"function": self.create_course, "description": "Create course"},
+            3: {"function": self.rename_course, "description": "Rename course"},
+            4: {"function": self.remove_course, "description": "Remove course"},
+            5: {"function": self.list_students, "description": "List students"},
+            6: {"function": self.create_student, "description": "Create student"},
+            7: {"function": self.rename_student, "description": "Rename student"},
+            8: {"function": self.change_student_dob, "description": "Change student date of birth"},
+            9: {"function": self.mark_student, "description": "Mark student"},
+            10: {"function": self.remove_student, "description": "Remove student"},
+            0: {"function": exit_loop, "description": "Quit"},
+        }
+        while True:
+            try:
+                print()
+                for commandKey, functionality in functionalities.items():
+                    print(f'{commandKey}: {functionality["description"]}')
+                command = int(input("Enter functionality: > "))
+                if command in functionalities:
+                    # pass
+                    functionalities[command]["function"]()
+            except ValueError:
+                continue
+            except NotEnoughDataException as e:
+                print(e)
+            except SystemExit:
+                break
+            except Exception as e:
+                print(e.with_traceback(None))
+                break
 
-def gen_classroom(student_count: int = 10) -> dict[str, dict | int]:
-    return {
-        "max_student_count": student_count,
-        "student_data": {},
-        "course_data": {},
-    }
-
-
-def list_students(classroom: dict[str, dict | int]):
-    for (student_id, data) in classroom["student_data"].items():
-        raw_marks = data["marks"]
-        print(f'Student ID: {student_id} | Name: {data["name"]} | DOB: {data["dob"]}')
-        print(f"Marksheet for {data['name']}")
-        for (course_id, course_mark) in raw_marks.items():
-            course_name = classroom["course_data"][course_id]['name']
-            print(f'Course name: {course_name} | Marks: {course_mark}')
-        print()
-
-
-def list_courses(classroom: dict[str, dict | int]):
-    for (course_id, course) in classroom["course_data"].items():
-        print(f"Course ID: {course_id} | Course name: {course['name']}")
-
-
-functions = {
-    1: create_edit_student,
-    2: create_edit_course,
-    3: mark_student,
-    4: list_students,
-    5: list_courses,
-    6: lambda x: sys.exit(),
-}
 
 if __name__ == "__main__":
-    primary_classroom = gen_classroom()
-    while True:
-        try:
-            command = int(input("Enter functionality: > "))
-            functions[command](primary_classroom)
-        except KeyError:
-            continue
-        except ValueError:
-            continue
-        except Exception as e:
-            print(e.with_traceback(None))
+    primary_classroom = Classroom()
+    primary_classroom.start_manager()
