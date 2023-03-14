@@ -1,3 +1,9 @@
 import uuid
+import math
 
-print("d" or "oofy")
+x = 8.523425
+round(x)
+
+import numpy as np
+x = np.array(range(5))
+print(np.average(x))
