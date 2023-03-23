@@ -1,3 +1,4 @@
+import datetime
 import os.path
 import threading
 import zipfile
@@ -80,6 +81,7 @@ class Classroom:
         while self.__executing_threads > 0:
             self.__cond.wait()
         self.__lock.release()
+
     @_sync
     def create_course(self, name: str) -> Course:
         new_course_id = uuid.uuid4()
@@ -94,16 +96,23 @@ class Classroom:
 
     @_sync
     def rename_course(self, course_id: str, new_name: str) -> Course:
-        return self.courses[course_id].rename(new_name)
+        course = self.courses[course_id]
+        if new_name:
+            return course.rename(new_name)
+        else:
+            return course
 
     @_sync
     def remove_course(self, course_id: str) -> None:
         del self.courses[course_id]
         for student in self.students.values():
-            del student.marks[course_id]
+            try:
+                del student.marks[course_id]
+            except KeyError:
+                pass
 
     @_sync
-    def create_student(self, name: str, dob: str) -> Student:
+    def create_student(self, name: str, dob: datetime.date) -> Student:
         new_student_id = uuid.uuid4()
         while new_student_id in self.courses:
             new_student_id = uuid.uuid4()
@@ -116,8 +125,18 @@ class Classroom:
         return self.students[student_id].rename(new_name)
 
     @_sync
-    def change_student_dob(self, student_id: str, new_dob: str) -> Student:
+    def change_student_dob(self, student_id: str, new_dob: datetime.date) -> Student:
         return self.students[student_id].change_date_of_birth(new_dob)
+
+    @_sync
+    def edit_student(self, student_id, name: str, dob: datetime.date):
+        cur_student = self.students.get(student_id, None)
+        if cur_student is None:
+            raise RuntimeError("Student not found.")
+        if name is not None:
+            cur_student.rename(name)
+        if dob is not None:
+            cur_student.change_date_of_birth(dob)
 
     @_sync
     def mark_student(self, student_id: str, course_id: str, new_mark: float) -> Student:
@@ -128,5 +147,4 @@ class Classroom:
         del self.students[student_id]
 
     def list_students(self):
-        print(self.students)
         return self.students

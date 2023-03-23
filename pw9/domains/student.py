@@ -1,3 +1,4 @@
+import datetime
 import time
 
 import numpy
@@ -6,9 +7,9 @@ from ..utils import floor
 
 
 class Student:
-    def __init__(self, name: str, dob: str):
-        self.name = name
-        self.dob = dob
+    def __init__(self, name: str, dob: datetime.date):
+        self.name: str = name
+        self.dob: datetime.date = dob
         self.marks: dict[str, float] = {}
 
     def mark(self, course_id: str, score: float):
@@ -20,7 +21,7 @@ class Student:
         self.name = new_name
         return self
 
-    def change_date_of_birth(self, dob: str):
+    def change_date_of_birth(self, dob: datetime.date):
         self.dob = dob
         return self
 
